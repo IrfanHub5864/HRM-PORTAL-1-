@@ -1,0 +1,38 @@
+.sidebar{
+width:220px;
+height:100vh;
+background:#2f4356;
+color:white;
+padding:20px;
+position:fixed;
+}
+
+.logo{
+margin-bottom:20px;
+text-align:center;
+}
+
+.sidebar ul{
+list-style:none;
+padding:0;
+}
+
+.sidebar li{
+margin:12px 0;
+}
+
+.navItem{
+text-decoration:none;
+color:white;
+display:block;
+padding:10px;
+border-radius:6px;
+}
+
+.navItem:hover{
+background:#405a73;
+}
+
+.navItem.active{
+background:#5a7fa6;
+}
