@@ -1,237 +1,109 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { login as loginRequest } from '../services/authService';
+import {
+  getAboutSettings,
+  getContactSettings,
+  getFeatures,
+  getHeaderSettings,
+  getPricing,
+} from '../services/settingsService';
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  const [header, setHeader] = useState({
+    title: 'Loading...',
+    subtitle: '',
+    description: '',
+    buttonText: 'Discover More',
+    buttonLink: '#features',
+    showButton: true,
+    backgroundImage: '',
+  });
+  const [about, setAbout] = useState({
+    title: 'Our Story',
+    description: 'Loading...',
+    mission: 'Loading...',
+    vision: 'Loading...',
+  });
+  const [contact, setContact] = useState({
+    address: '',
+    email: '',
+    phone: '',
+    facebook: '',
+    twitter: '',
+    linkedin: '',
+    instagram: '',
+  });
+  const [features, setFeatures] = useState([]);
+  const [pricing, setPricing] = useState([]);
+
+  const socialLinks = useMemo(() => {
+    return [
+      contact.facebook && { href: contact.facebook, icon: 'fab fa-facebook-f', label: 'Facebook' },
+      contact.twitter && { href: contact.twitter, icon: 'fab fa-twitter', label: 'Twitter' },
+      contact.linkedin && { href: contact.linkedin, icon: 'fab fa-linkedin-in', label: 'LinkedIn' },
+      contact.instagram && { href: contact.instagram, icon: 'fab fa-instagram', label: 'Instagram' },
+    ].filter(Boolean);
+  }, [contact]);
 
   useEffect(() => {
-    document.body.classList.add('site-mode');
+    let active = true;
+    const loadSettings = async () => {
+      try {
+        const [headerRes, aboutRes, contactRes, featuresRes, pricingRes] = await Promise.allSettled([
+          getHeaderSettings(),
+          getAboutSettings(),
+          getContactSettings(),
+          getFeatures(),
+          getPricing(),
+        ]);
+
+        if (!active) return;
+
+        if (headerRes.status === 'fulfilled' && headerRes.value?.success && headerRes.value?.data) {
+          setHeader((prev) => ({ ...prev, ...headerRes.value.data }));
+        }
+        if (aboutRes.status === 'fulfilled' && aboutRes.value?.success && aboutRes.value?.data) {
+          setAbout((prev) => ({ ...prev, ...aboutRes.value.data }));
+        }
+        if (contactRes.status === 'fulfilled' && contactRes.value?.success && contactRes.value?.data) {
+          setContact((prev) => ({ ...prev, ...contactRes.value.data }));
+        }
+        if (featuresRes.status === 'fulfilled' && featuresRes.value?.success && featuresRes.value?.data) {
+          setFeatures(featuresRes.value.data);
+        }
+        if (pricingRes.status === 'fulfilled' && pricingRes.value?.success && pricingRes.value?.data) {
+          setPricing(pricingRes.value.data);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    loadSettings();
     return () => {
-      document.body.classList.remove('site-mode');
+      active = false;
     };
-  }, []);
-
-  useEffect(() => {
-    const fetchHeader = async () => {
-      try {
-        const res = await fetch('/api/v1/settings/header');
-        const data = await res.json();
-        if (res.ok && data.success && data.data) {
-          const s = data.data;
-          const titleEl = document.getElementById('hero-title');
-          const subEl = document.getElementById('hero-subtitle');
-          const descEl = document.getElementById('hero-desc');
-          const btnRow = document.getElementById('hero-btn-row');
-          const primBtn = document.getElementById('hero-btn');
-          const bg = document.getElementById('hero-bg-container');
-
-          if (titleEl) titleEl.textContent = s.title || 'Welcome';
-          if (subEl) {
-            if (s.subtitle) {
-              subEl.textContent = s.subtitle;
-              subEl.style.display = 'inline-block';
-            } else {
-              subEl.style.display = 'none';
-            }
-          }
-          if (descEl) {
-            if (s.description) {
-              descEl.textContent = s.description;
-              descEl.style.display = 'block';
-            } else {
-              descEl.style.display = 'none';
-            }
-          }
-          if (btnRow && primBtn) {
-            if (s.showButton !== false) {
-              btnRow.style.display = 'flex';
-              primBtn.textContent = s.buttonText || 'Discover More';
-              primBtn.setAttribute('href', s.buttonLink || '#features');
-            } else {
-              primBtn.style.display = 'none';
-              btnRow.style.display = 'flex';
-            }
-          }
-          if (bg && s.backgroundImage) {
-            bg.style.backgroundImage = `url('${s.backgroundImage}')`;
-          }
-        }
-      } catch {
-        // ignore for now
-      }
-    };
-
-    const fetchAbout = async () => {
-      try {
-        const res = await fetch('/api/v1/settings/about');
-        const data = await res.json();
-        if (res.ok && data.success && data.data) {
-          const a = data.data;
-          const titleEl = document.getElementById('about-title');
-          const descEl = document.getElementById('about-desc');
-          const missionEl = document.getElementById('about-mission');
-          const visionEl = document.getElementById('about-vision');
-          if (titleEl && a.title) titleEl.textContent = a.title;
-          if (descEl) {
-            if (a.description) {
-              descEl.textContent = a.description;
-              descEl.style.display = 'block';
-            } else {
-              descEl.style.display = 'none';
-            }
-          }
-          if (missionEl && a.mission) missionEl.textContent = a.mission;
-          if (visionEl && a.vision) visionEl.textContent = a.vision;
-        }
-      } catch {
-        // ignore
-      }
-    };
-
-    const fetchContact = async () => {
-      try {
-        const res = await fetch('/api/v1/settings/contact');
-        const data = await res.json();
-        if (res.ok && data.success && data.data) {
-          const c = data.data;
-          if (c.address) {
-            const row = document.getElementById('contact-address-row');
-            const text = document.getElementById('contact-address');
-            if (row && text) {
-              row.style.display = 'flex';
-              text.textContent = c.address;
-            }
-          }
-          if (c.email) {
-            const row = document.getElementById('contact-email-row');
-            const text = document.getElementById('contact-email');
-            if (row && text) {
-              row.style.display = 'flex';
-              text.textContent = c.email;
-            }
-          }
-          if (c.phone) {
-            const row = document.getElementById('contact-phone-row');
-            const text = document.getElementById('contact-phone');
-            if (row && text) {
-              row.style.display = 'flex';
-              text.textContent = c.phone;
-            }
-          }
-          const socialRow = document.getElementById('footer-social-row');
-          if (socialRow) {
-            const links = [];
-            if (c.facebook && c.facebook !== '#') {
-              links.push(
-                `<a href="${c.facebook}" target="_blank" class="social-icon" title="Facebook"><i class="fab fa-facebook-f"></i></a>`
-              );
-            }
-            if (c.twitter && c.twitter !== '#') {
-              links.push(
-                `<a href="${c.twitter}" target="_blank" class="social-icon" title="Twitter"><i class="fab fa-twitter"></i></a>`
-              );
-            }
-            if (c.linkedin && c.linkedin !== '#') {
-              links.push(
-                `<a href="${c.linkedin}" target="_blank" class="social-icon" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>`
-              );
-            }
-            if (c.instagram && c.instagram !== '#') {
-              links.push(
-                `<a href="${c.instagram}" target="_blank" class="social-icon" title="Instagram"><i class="fab fa-instagram"></i></a>`
-              );
-            }
-            socialRow.innerHTML = links.join('');
-          }
-        }
-      } catch {
-        // ignore
-      }
-    };
-
-    const fetchFeatures = async () => {
-      try {
-        const res = await fetch('/api/v1/settings/features');
-        const data = await res.json();
-        if (res.ok && data.success && data.data) {
-          const grid = document.getElementById('features-grid');
-          if (grid) {
-            grid.innerHTML = data.data
-              .map(
-                (f) => `
-            <div class="card">
-              <div class="card-icon" style="font-size: 2rem; margin-bottom: 12px;">${f.icon || '✨'}</div>
-              <h3 class="card-title" style="font-size: 1.15rem; font-weight: 700; color: var(--text); margin-bottom: 6px;">${f.title}</h3>
-              <p class="card-text" style="font-size: 0.95rem; color: var(--text-light); line-height: 1.5;">${f.description}</p>
-            </div>`
-              )
-              .join('');
-          }
-        }
-      } catch {
-        // ignore
-      }
-    };
-
-    const fetchPricing = async () => {
-      try {
-        const res = await fetch('/api/v1/settings/pricing');
-        const data = await res.json();
-        if (res.ok && data.success && data.data) {
-          const grid = document.getElementById('pricing-grid');
-          if (grid) {
-            grid.innerHTML = data.data
-              .map(
-                (p) => `
-            <div class="card ${p.isPopular ? 'card-featured' : ''}">
-              <h3 class="pricing-name" style="font-size: 1.25rem; font-weight: 700; color: var(--text);">${p.planName}</h3>
-              <div class="pricing-price" style="font-size: 2.5rem; font-weight: 800; color: var(--text); margin: 12px 0;">$${p.price}<span style="font-size:1rem; font-weight:500; color:var(--text-light)">/mo</span></div>
-              <hr class="divider" style="margin: 20px 0;"/>
-              <ul class="pricing-features" style="list-style: none; padding: 0; display:flex; flex-direction:column; gap:12px;">
-                ${p.features
-                  .map(
-                    (f) =>
-                      `<li style="font-size: 0.95rem; color: var(--text); display:flex; gap:8px;">✅ <span>${f}</span></li>`
-                  )
-                  .join('')}
-              </ul>
-              <a href="#register" class="btn ${p.isPopular ? 'btn-solid' : 'btn-outline'} btn-block" style="margin-top:auto">Choose Plan</a>
-            </div>`
-              )
-              .join('');
-          }
-        }
-      } catch {
-        // ignore
-      }
-    };
-
-    fetchHeader();
-    fetchAbout();
-    fetchContact();
-    fetchFeatures();
-    fetchPricing();
   }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
     setLoginLoading(true);
-    const email = document.getElementById('login-email')?.value.trim();
-    const password = document.getElementById('login-password')?.value;
     try {
-      const res = await fetch('/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        sessionStorage.setItem('shnoor_admin', 'true');
-        sessionStorage.setItem('shnoor_token', data.token);
-        sessionStorage.setItem('shnoor_admin_email', data.user.email);
+      const data = await loginRequest({ email: loginEmail.trim(), password: loginPassword });
+      if (data.success) {
+        localStorage.setItem('shnoor_token', data.token);
+        localStorage.setItem('shnoor_role', data.user.role);
+        localStorage.setItem('shnoor_email', data.user.email);
+        localStorage.setItem('shnoor_admin_email', data.user.email);
+
         if (data.user.role === 'Manager') {
           navigate('/manager');
         } else if (data.user.role === 'Employee') {
@@ -242,15 +114,16 @@ const LandingPage = () => {
       } else {
         setLoginError(data.error || 'Invalid email or password.');
       }
-    } catch {
-      setLoginError('Network error. Please try again.');
+    } catch (err) {
+      const message = err?.response?.data?.error || 'Network error. Please try again.';
+      setLoginError(message);
     } finally {
       setLoginLoading(false);
     }
   };
 
   return (
-    <>
+    <div className="site-mode">
       <header className="navbar">
         <div className="nav-container">
           <a href="#home" className="logo">
@@ -295,20 +168,32 @@ const LandingPage = () => {
 
       <section className="section hero" id="home">
         <div className="container center">
-          <div className="hero-badge" id="hero-subtitle" style={{ display: 'none' }} />
+          {header.subtitle && (
+            <div className="hero-badge" id="hero-subtitle">
+              {header.subtitle}
+            </div>
+          )}
           <h1 className="hero-title" id="hero-title">
-            Loading...
+            {header.title || 'Welcome'}
           </h1>
-          <p className="hero-desc" id="hero-desc" style={{ display: 'none' }} />
-          <div className="btn-row" id="hero-btn-row" style={{ display: 'none' }}>
-            <a href="#features" className="btn btn-solid" id="hero-btn">
-              Discover More
+          {header.description && (
+            <p className="hero-desc" id="hero-desc">
+              {header.description}
+            </p>
+          )}
+          <div className="btn-row" id="hero-btn-row" style={{ display: header.showButton ? 'flex' : 'none' }}>
+            <a href={header.buttonLink || '#features'} className="btn btn-solid" id="hero-btn">
+              {header.buttonText || 'Discover More'}
             </a>
             <a href="#features" className="btn btn-outline" id="hero-btn-secondary">
               Explore Features
             </a>
           </div>
-          <div className="hero-visual" id="hero-bg-container" />
+          <div
+            className="hero-visual"
+            id="hero-bg-container"
+            style={header.backgroundImage ? { backgroundImage: `url('${header.backgroundImage}')` } : undefined}
+          />
         </div>
       </section>
 
@@ -316,14 +201,14 @@ const LandingPage = () => {
         <div className="container center">
           <div className="section-label">About Us</div>
           <h2 className="section-title" id="about-title">
-            Our Story
+            {about.title || 'Our Story'}
           </h2>
           <p
             className="section-desc"
             id="about-desc"
             style={{ maxWidth: 800, textAlign: 'center', margin: '0 auto', lineHeight: 1.6 }}
           >
-            Loading...
+            {about.description || 'Learn more about our mission.'}
           </p>
           <div
             className="grid-2"
@@ -348,7 +233,7 @@ const LandingPage = () => {
                 Our Mission
               </h3>
               <p style={{ color: 'var(--text-light)', lineHeight: 1.6 }} id="about-mission">
-                Loading...
+                {about.mission || 'We build tools that empower teams.'}
               </p>
             </div>
             <div className="card" style={{ background: 'var(--bg-light)', border: 'none' }}>
@@ -363,7 +248,7 @@ const LandingPage = () => {
                 Our Vision
               </h3>
               <p style={{ color: 'var(--text-light)', lineHeight: 1.6 }} id="about-vision">
-                Loading...
+                {about.vision || 'A future of connected, productive workplaces.'}
               </p>
             </div>
           </div>
@@ -377,7 +262,35 @@ const LandingPage = () => {
           <p className="section-desc">
             Tools built for modern HR teams to manage their workforce effectively.
           </p>
-          <div className="grid-3" id="features-grid" />
+          <div className="grid-3" id="features-grid">
+            {features.length === 0 ? (
+              <div className="card">
+                <div className="card-icon" style={{ fontSize: '2rem', marginBottom: 12 }}>
+                  ✨
+                </div>
+                <h3 className="card-title" style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text)' }}>
+                  Feature highlights are coming soon
+                </h3>
+                <p className="card-text" style={{ fontSize: '0.95rem', color: 'var(--text-light)' }}>
+                  Add features from the Admin dashboard to populate this section.
+                </p>
+              </div>
+            ) : (
+              features.map((feature) => (
+                <div key={feature._id || feature.title} className="card">
+                  <div className="card-icon" style={{ fontSize: '2rem', marginBottom: 12 }}>
+                    {feature.icon || '✨'}
+                  </div>
+                  <h3 className="card-title" style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text)' }}>
+                    {feature.title}
+                  </h3>
+                  <p className="card-text" style={{ fontSize: '0.95rem', color: 'var(--text-light)' }}>
+                    {feature.description}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </section>
 
@@ -385,10 +298,52 @@ const LandingPage = () => {
         <div className="container center">
           <div className="section-label">Pricing</div>
           <h2 className="section-title">Simple, transparent pricing</h2>
-          <p className="section-desc">
-            No hidden fees. Choose the plan that works best for your team.
-          </p>
-          <div className="grid-3" id="pricing-grid" />
+          <p className="section-desc">No hidden fees. Choose the plan that works best for your team.</p>
+          <div className="grid-3" id="pricing-grid">
+            {pricing.length === 0 ? (
+              <div className="card">
+                <h3 className="pricing-name" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>
+                  Starter
+                </h3>
+                <div className="pricing-price" style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text)', margin: '12px 0' }}>
+                  $0
+                  <span style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-light)' }}>/mo</span>
+                </div>
+                <hr className="divider" style={{ margin: '20px 0' }} />
+                <ul className="pricing-features" style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <li style={{ fontSize: '0.95rem', color: 'var(--text)', display: 'flex', gap: 8 }}>
+                    ✅ <span>Basic HR workflows</span>
+                  </li>
+                </ul>
+                <a href="#register" className="btn btn-outline btn-block" style={{ marginTop: 'auto' }}>
+                  Choose Plan
+                </a>
+              </div>
+            ) : (
+              pricing.map((plan) => (
+                <div key={plan._id || plan.planName} className={`card ${plan.isPopular ? 'card-featured' : ''}`}>
+                  <h3 className="pricing-name" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text)' }}>
+                    {plan.planName}
+                  </h3>
+                  <div className="pricing-price" style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text)', margin: '12px 0' }}>
+                    ${plan.price}
+                    <span style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-light)' }}>/mo</span>
+                  </div>
+                  <hr className="divider" style={{ margin: '20px 0' }} />
+                  <ul className="pricing-features" style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {plan.features?.map((feature) => (
+                      <li key={`${plan.planName}-${feature}`} style={{ fontSize: '0.95rem', color: 'var(--text)', display: 'flex', gap: 8 }}>
+                        ✅ <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <a href="#register" className={`btn ${plan.isPopular ? 'btn-solid' : 'btn-outline'} btn-block`} style={{ marginTop: 'auto' }}>
+                    Choose Plan
+                  </a>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </section>
 
@@ -399,25 +354,34 @@ const LandingPage = () => {
             <h2 className="section-title" style={{ textAlign: 'left', marginBottom: 24 }}>
               Get in touch
             </h2>
-            <p
-              className="section-desc"
-              style={{ textAlign: 'left', marginBottom: 30, maxWidth: '100%' }}
-            >
+            <p className="section-desc" style={{ textAlign: 'left', marginBottom: 30, maxWidth: '100%' }}>
               Have questions? Reach out to our team via email or visit us at our office.
             </p>
             <div className="contact-items">
-              <div className="contact-row" id="contact-address-row" style={{ display: 'none' }}>
-                <div className="contact-icon">📍</div>
-                <div className="contact-text" id="contact-address" />
-              </div>
-              <div className="contact-row" id="contact-email-row" style={{ display: 'none' }}>
-                <div className="contact-icon">✉️</div>
-                <div className="contact-text" id="contact-email" />
-              </div>
-              <div className="contact-row" id="contact-phone-row" style={{ display: 'none' }}>
-                <div className="contact-icon">📞</div>
-                <div className="contact-text" id="contact-phone" />
-              </div>
+              {contact.address && (
+                <div className="contact-row" id="contact-address-row">
+                  <div className="contact-icon">📍</div>
+                  <div className="contact-text" id="contact-address">
+                    {contact.address}
+                  </div>
+                </div>
+              )}
+              {contact.email && (
+                <div className="contact-row" id="contact-email-row">
+                  <div className="contact-icon">✉️</div>
+                  <div className="contact-text" id="contact-email">
+                    {contact.email}
+                  </div>
+                </div>
+              )}
+              {contact.phone && (
+                <div className="contact-row" id="contact-phone-row">
+                  <div className="contact-icon">📞</div>
+                  <div className="contact-text" id="contact-phone">
+                    {contact.phone}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -446,7 +410,11 @@ const LandingPage = () => {
                   placeholder="you@example.com"
                   autoComplete="email"
                   required
-                  onChange={() => setLoginError('')}
+                  value={loginEmail}
+                  onChange={(e) => {
+                    setLoginEmail(e.target.value);
+                    setLoginError('');
+                  }}
                 />
               </div>
               <div className="form-group">
@@ -458,7 +426,11 @@ const LandingPage = () => {
                   placeholder="••••••••"
                   autoComplete="current-password"
                   required
-                  onChange={() => setLoginError('')}
+                  value={loginPassword}
+                  onChange={(e) => {
+                    setLoginPassword(e.target.value);
+                    setLoginError('');
+                  }}
                 />
               </div>
               <div className="auth-row" style={{ marginBottom: 20 }}>
@@ -469,12 +441,7 @@ const LandingPage = () => {
                   Forgot password?
                 </a>
               </div>
-              <button
-                type="submit"
-                className="btn btn-solid btn-block"
-                id="login-submit"
-                disabled={loginLoading}
-              >
+              <button type="submit" className="btn btn-solid btn-block" id="login-submit" disabled={loginLoading}>
                 {loginLoading ? 'Signing in...' : 'Sign In'}
               </button>
             </form>
@@ -502,7 +469,13 @@ const LandingPage = () => {
             >
               Empowering Next-Gen Workforce
             </div>
-            <div className="social-row" id="footer-social-row" style={{ marginTop: 20, gap: 20 }} />
+            <div className="social-row" id="footer-social-row" style={{ marginTop: 20, gap: 20 }}>
+              {socialLinks.map((link) => (
+                <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className="social-icon" title={link.label}>
+                  <i className={link.icon} />
+                </a>
+              ))}
+            </div>
           </div>
         </div>
         <div className="footer-bar">
@@ -511,9 +484,8 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
-    </>
+    </div>
   );
 };
 
 export default LandingPage;
-
